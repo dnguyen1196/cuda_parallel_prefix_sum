@@ -1,0 +1,54 @@
+Working with 1024 elements
+6e-06 seconds to do sequential scan
+Working with 4096 elements
+2.3e-05 seconds to do sequential scan
+Working with 16384 elements
+9.3e-05 seconds to do sequential scan
+Working with 65536 elements
+0.00011 seconds to do sequential scan
+Working with 262144 elements
+0.000436 seconds to do sequential scan
+Working with 1048576 elements
+0.001625 seconds to do sequential scan
+Working with 4194304 elements
+0.006388 seconds to do sequential scan
+Working with 16777216 elements
+0.025369 seconds to do sequential scan
+Working with 67108864 elements
+0.102139 seconds to do sequential scan
+
+
+Working with 1024 elements
+0.120657 seconds to do naive parallel scan
+Working with 65536 elements
+0.088989 seconds to do naive parallel scan
+Working with 1048576 elements
+0.089596 seconds to do naive parallel scan
+Working with 16777216 elements
+0.09332 seconds to do naive parallel scan
+Working with 67108864 elements
+0.139026 seconds to do naive parallel scan
+
+
+Working with 1024 elements
+0.119734 seconds to do a better parallel scan
+Working with 65536 elements
+0.109018 seconds to do a better parallel scan
+Working with 1048576 elements
+0.090004 seconds to do a better parallel scan
+Working with 16777216 elements
+0.091758 seconds to do a better parallel scan
+Working with 67108864 elements
+0.119955 seconds to do a better parallel scan
+
+
+Working with 1024 elements
+0.093754 seconds to do a conflict free parallel scan
+Working with 65536 elements
+0.090106 seconds to do a conflict free parallel scan
+Working with 1048576 elements
+0.094696 seconds to do a conflict free parallel scan
+Working with 16777216 elements
+0.099038 seconds to do a conflict free parallel scan
+Working with 67108864 elements
+0.133563 seconds to do a conflict free parallel scan
