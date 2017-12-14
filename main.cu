@@ -14,175 +14,19 @@ using namespace std;
 // Sequential scan function
 void sequential_scan(int* input, int* output, int num);
 
-__global__ void naive_parallel_scan(int* input, int* output, int num);
-
-__global__ void better_parallel_scan(int* input, int* output, int num);
-
-__global__ void conflict_free_parallel_scan(int* input, int* output, int num);
-
-const int B = 256;
+const int B = 512;
 
 void test_sequential(int *input, int* output, int num);
 
-void test_naive_parallel(int *input, int* output, int num);
-
-void test_better_parallel(int* input, int* output, int num);
-
-void test_conflict_free_parallel_scan(int* input, int* output, int num);
+void RUN(int *input, int* output, int num, int choice);
 
 void check_results(int* input, int* output, int num);
-
-int main() {
-    // for (int N = 10; N < 28; N += 2) {
-    int N = 20;
-        int num = 1 << N;
-        LOG("Working with " << num << " elements");
-        // Generate a random array of length n all with values between 1 and 10
-        vector<int> input(num);
-        vector<int> output(num+1);
-        for (int i = 0; i < num; i++) {
-            input[i] = (rand() % 10) + 1;
-        }
-
-        // NOTE: the function to check the results have been commented out 
-        // as sequential checking takes too much time on big input
-        // test_sequential(&input[0], &output[0], num);
-        // check_results(&input[0], &output[0], num);
-        // std::fill(output.begin(), output.end(), 0);
-
-        // Perform naive parallel scan and time it
-        test_naive_parallel(&input[0], &output[0], num);
-        // check_results(&input[0], &output[0], num);
-        // std::fill(output.begin(), output.end(), 0);
-
-        // Perform better parallel scan and time it
-        // test_better_parallel(&input[0], &output[0], num);
-        // check_results(&input[0], &output[0], num);
-        // std::fill(output.begin(), output.end(), 0);
-
-        // test_conflict_free_parallel_scan(&input[0], &output[0], num);
-        // check_results(&input[0], &output[0], num);
-    // }
-}
-
-void check_results(int* input, int* output, int num) {
-    if (output[0] != 0) {
-        DIE("Index " << 0 << " expect " << 0 << " got " << output[0]);
-    }
-    for (int i = 0; i < num; i++) {
-        if (output[i+1] != input[i] + output[i]) {
-            DIE("Index " << i+1 << " expect " << input[i] + output[i] 
-                << " got " << output[i+1]);
-        }
-    }
-}
-
-void test_sequential(int* input, int* output, int num) {
-    auto sequential_start = start_time();
-    sequential_scan(input, output, num);
-    long int time = delta_usec (sequential_start);
-    LOG(time/1000000.0 << " seconds to do sequential scan");
-}
-
-
-void test_naive_parallel(int *input, int *output, int num) {
-    auto start = start_time();
-    int size_in_bytes = num*4;
-    int *input_gpu = NULL;
-    cudaError_t err = cudaMalloc((void **)&input_gpu, size_in_bytes);
-    ERR_CHK (err, "Failed to allocate device input gpu");
-    cudaMemcpy(&input_gpu, &input, size_in_bytes, cudaMemcpyHostToDevice); // Copy memory to GPU
-
-    int *output_gpu = NULL;
-    err = cudaMalloc((void**)&output_gpu, size_in_bytes+4);
-    ERR_CHK (err, "Failed to allocate device output gpu");
-
-    int NumBlocks = num/B;
-    int NumThreads = B/2;
-    dim3 thBlocks(NumBlocks), threads(NumThreads);
-
-    better_parallel_scan<<<thBlocks, threads>>>(input_gpu, output_gpu, num);
-
-    cudaMemcpy(&output, &output_gpu, size_in_bytes+4, cudaMemcpyDeviceToHost);
-    cudaFree(input_gpu);
-    cudaFree(output_gpu);
-
-    long int time = delta_usec (start);
-    LOG(time/1000000.0 << " seconds to do naive parallel scan");
-}
-
-void test_better_parallel(int* input, int* output, int num) {
-    auto start = start_time();
-    int size_in_bytes = num*4;
-    int *input_gpu = NULL;
-
-    cudaError_t err = cudaMalloc((void **)&input_gpu, size_in_bytes);
-    ERR_CHK (err, "Failed to allocate device input gpu - better");
-    cudaMemcpy(input_gpu, input, size_in_bytes, cudaMemcpyHostToDevice); // Copy memory to GPU
-
-    int *output_gpu = NULL;
-    err = cudaMalloc((void**)&output_gpu, size_in_bytes+4);
-    ERR_CHK (err, "Failed to allocate device output gpu - better");
-
-    int NumBlocks = num/B;
-    int NumThreads = B/2;
-    dim3 thBlocks(NumBlocks), threads(NumThreads);
-
-    better_parallel_scan<<<thBlocks, threads>>>(input_gpu, output_gpu, num);
-
-    cudaMemcpy(output, output_gpu, size_in_bytes+4, cudaMemcpyDeviceToHost);
-
-    cudaFree(input_gpu);
-    cudaFree(output_gpu);
-    long int time = delta_usec (start);
-    LOG(time/1000000.0 << " seconds to do a better parallel scan");
-}
-
-void test_conflict_free_parallel_scan(int* input, int* output, int num) {
-    auto start = start_time();
-    int size_in_bytes = num*4;
-    int *input_gpu = NULL;
-    cudaError_t err = cudaMalloc((void **)&input_gpu, size_in_bytes);
-    ERR_CHK (err, "Failed to allocate device input gpu - conflict free");
-
-    cudaMemcpy(input_gpu, input, size_in_bytes, cudaMemcpyHostToDevice); // Copy memory to GPU
-
-    int *output_gpu = NULL;
-    err = cudaMalloc((void**)&output_gpu, size_in_bytes+4);
-    ERR_CHK (err, "Failed to allocate device output gpu - conflict free");
-
-
-    int NumBlocks = num/B;
-    int NumThreads = B/2;
-    dim3 thBlocks(NumBlocks), threads(NumThreads);
-
-    better_parallel_scan<<<thBlocks, threads>>>(input_gpu, output_gpu, num);
-
-    cudaMemcpy(output, output_gpu, size_in_bytes+4, cudaMemcpyDeviceToHost); // Copy memory to GPU
-    
-    cudaFree(input_gpu);
-    cudaFree(output_gpu);
-
-    long int time = delta_usec (start);
-    LOG(time/1000000.0 << " seconds to do a conflict free parallel scan");
-}
-
-
-/*
- * Function to perform sequential scan
- */
-void sequential_scan(int* input, int* output, int length) {
-    output[0] = 0;
-    for(int i = 0; i < length; i++) {
-        output[i+1] = output[i] + input[i];
-    }
-}
 
 /*
  * Naive parallel scan
  */
 __global__ void naive_parallel_scan(int* input, int* output, int n) {
-    extern __shared__ int shared_mem[]; // This is like a double buffer
+    __shared__ int temp[64]; // This is like a double buffer
     // At any one point, we need sort of two buffer arrays
     // So just keep them both in 1 array and keep track of the indices
 
@@ -192,7 +36,7 @@ __global__ void naive_parallel_scan(int* input, int* output, int n) {
 
     // First load into the shared memory
     // The first element is 0
-    shared_mem[pout*n + thid] = (thid > 0) ? input[thid-1] : 0;
+    temp[pout*n + thid] = (thid > 0) ? input[thid-1] : 0;
     __syncthreads();
 
     for (int offset = 1; offset < n; offset *= 2) {
@@ -200,13 +44,14 @@ __global__ void naive_parallel_scan(int* input, int* output, int n) {
         pin = 1 - pout;
         if (thid > offset) { // If the thread can do work (remember after each level, some part of the array doesn't require
             // further changes
-            shared_mem[pout*n + thid] += shared_mem[pin * n + thid - offset];
+            temp[pout*n + thid] += temp[pin * n + thid - offset];
         } else { // Just copy the data over
-            shared_mem[pout*n + thid] = shared_mem[pin * n + thid];
+            temp[pout*n + thid] = temp[pin * n + thid];
         }
         __syncthreads();
     }
-    output[thid] = shared_mem[pout * n + thid]; // Write back on the output
+
+    output[thid] = temp[pout * n + thid]; // Write back on the output
 }
 
 
@@ -302,4 +147,102 @@ __global__ void conflict_free_parallel_scan(int* input, int* output, int n) {
 
     output[ai] = temp[ai + bankOffsetA];
     output[bi] = temp[bi + bankOffsetB];
+}
+
+void check_results(int* input, int* output, int num) {
+    if (output[0] != 0) {
+        DIE("Index " << 0 << " expect " << 0 << " got " << output[0]);
+    }
+    for (int i = 0; i < num; i++) {
+        if (output[i+1] != input[i] + output[i]) {
+            DIE("Index " << i+1 << " expect " << input[i] + output[i] 
+                << " got " << output[i+1]);
+        }
+    }
+}
+
+void test_sequential(int* input, int* output, int num) {
+    auto sequential_start = start_time();
+    sequential_scan(input, output, num);
+    long int time = delta_usec (sequential_start);
+    LOG(time/1000000.0 << " seconds to do sequential scan");
+}
+
+
+void RUN(int *input, int *output, int num, int choice) {
+    auto start = start_time();
+    int size_in_bytes = num*4;
+    int *input_gpu = NULL;
+    cudaError_t err = cudaMalloc((void **)&input_gpu, size_in_bytes);
+    ERR_CHK (err, "Failed to allocate device input gpu");
+    cudaMemcpy((void*)input_gpu, (void*)input, size_in_bytes, cudaMemcpyHostToDevice); // Copy memory to GPU
+
+    int *output_gpu = NULL;
+    err = cudaMalloc((void**)&output_gpu, size_in_bytes);
+    ERR_CHK (err, "Failed to allocate device output gpu");
+
+    int NumBlocks = num/B;
+    int NumThreads = B;
+    int NumBytesShared;
+    dim3 thBlocks(NumBlocks), threads(NumThreads);
+
+    string name = "";
+    if (choice == 1){
+        NumBytesShared = size_in_bytes * 2;
+        naive_parallel_scan<<<thBlocks, threads>>>(input_gpu, output_gpu, num);
+        name = "naive parallel";
+    } else if (choice == 2) {
+        better_parallel_scan<<<thBlocks, threads>>>(input_gpu, output_gpu, num);
+        name = "better parallel";
+    } else {
+        conflict_free_parallel_scan<<<thBlocks, threads>>>(input_gpu, output_gpu, num);
+        name = "conflict free parallel";
+    }
+
+    cudaMemcpy((void*)output, (void*)output_gpu, size_in_bytes, cudaMemcpyDeviceToHost);
+    cudaFree(input_gpu);
+    cudaFree(output_gpu);
+
+    long int time = delta_usec (start);
+
+    LOG(time/1000000.0 << " seconds to do " << name << " scan");
+}
+
+/*
+ * Function to perform sequential scan
+ */
+void sequential_scan(int* input, int* output, int length) {
+    output[0] = 0;
+    for(int i = 0; i < length; i++) {
+        output[i+1] = output[i] + input[i];
+    }
+}
+
+int main() {
+        srand(317);
+    // for (int N = 10; N < 28; N += 2) {
+        int N = 5;
+        int num = 1 << N;
+        LOG("Working with " << num << " elements");
+        // Generate a random array of length n all with values between 1 and 10
+        vector<int> input(num);
+        vector<int> output(num+1);
+        for (int i = 0; i < num; i++) {
+            input[i] = (rand() % 100) + 1;
+        }
+
+        for (int i = 0; i < 5; i++) {
+            cout << input[i] << endl;
+        }
+        // NOTE: the function to check the results have been commented out 
+        // as sequential checking takes too much time on big input
+        // test_sequential(&input[0], &output[0], num);
+        // check_results(&input[0], &output[0], num);
+        std::fill(output.begin(), output.end(), 0);
+
+        // Perform naive parallel scan and time it
+        RUN(&input[0], &output[0], num, 2);
+        for (int i = 0; i < 5; i++) {
+            cout << output[i] << endl;
+        }
 }
